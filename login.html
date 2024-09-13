@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login System</title>
+    <link rel="stylesheet" href="styl.css">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+    
+    </style>
+</head>
+<body>
+    <article class="container">
+        <article><h2>Login</h2>
+        <form id="loginForm">
+            <input type="text" id="loginUsername" placeholder="Username" required>
+            <input type="password" id="loginPassword" placeholder="Password" required>
+            <button type="submit">Login</button>
+            <p><a href="#" id="forgotPasswordLink">Forgot Password?</a></p>
+            <p>Don't have an account? <a href="#" id="signUpLink">Sign Up</a></p>
+        </form>
+    </article>
+    <article>
+        <h2 id="signupHeader" style="display: none;">Sign Up</h2>
+        <form id="signUpForm" style="display: none;">
+            <input type="text" id="signUpUsername" placeholder="Username" required>
+            <input type="password" id="signUpPassword" placeholder="Password" required>
+            <button type="submit">Sign Up</button>
+        </form>
+    </article>  
+    <article>
+        <h2 id="forgotPasswordHeader" style="display: none;">Forgot Password</h2>
+        <form id="forgotPasswordForm" style="display: none;">
+            <input type="text" id="forgotPasswordUsername" placeholder="Enter your username" required>
+            <button type="submit">Reset Password</button>
+        </form>
+    </article>
+    </article>
+    <script>
+        document.getElementById('signUpLink').addEventListener('click', function() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('signUpForm').style.display = 'block';
+            document.getElementById('signupHeader').style.display = 'block';
+        });
+
+        document.getElementById('forgotPasswordLink').addEventListener('click', function() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('forgotPasswordForm').style.display = 'block';
+            document.getElementById('forgotPasswordHeader').style.display = 'block';
+        });
+
+        // Sign up
+        document.getElementById('signUpForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username = document.getElementById('signUpUsername').value;
+            const password = document.getElementById('signUpPassword').value;
+
+            if (username && password) {
+                document.cookie = `username=${username};`;
+                document.cookie = `password=${password};`;
+                alert('Sign up successful! You can now log in.');
+                window.location.reload();
+            }
+        });
+
+        // Login
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+
+            const storedUsername = getCookie('username');
+            const storedPassword = getCookie('password');
+
+            if (username === storedUsername && password === storedPassword) {
+                alert('Login successful!');
+                window.location.assign('index.html');
+            } else {
+                alert('Incorrect username or password.');
+            }
+        });
+
+        // Forgot password
+        document.getElementById('forgotPasswordForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username = document.getElementById('forgotPasswordUsername').value;
+            const storedUsername = getCookie('username');
+
+            if (username === storedUsername) {
+                const storedPassword = getCookie('password');
+                alert(`Your password is: ${storedPassword}`);
+            } else {
+                alert('Username not found.');
+            }
+        });
+
+        // Helper function to get cookies
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+    </script>
+</body>
+</html>

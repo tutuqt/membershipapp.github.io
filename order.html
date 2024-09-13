@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Order List</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="dark.js"></script>
+</head>
+<body id="orderbody">
+
+    <header>
+        <article>
+            <h2>Membership Management</h2>
+            <i class="fa-regular fa-user fa-lg" onclick="window.location.assign('login.html')"></i>
+        <button onclick="history.back()">Go Back</button>
+        <button onclick="openOrderList()">Order List</button>
+        </article>
+    </header>
+
+    <nav class="filter-buttons" id="filterButtons"></nav>
+    <article class="product-container" id="productContainer"></article>
+
+    <!-- Modal for ordering a product -->
+    <article id="orderModal" class="modal">
+        <article class="modal-content">
+            <article class="left">
+                <span class="close">&times;</span>
+                <h2>Order Product</h2>
+                <label for="brand">Brand</label>
+                <select id="brand" name="brand" onchange="updateSizes()"></select>
+
+                <label for="size">Size</label>
+                <select id="size" name="size" onchange="updatePrice()"></select>
+
+                <label for="customerName">Customer Name</label>
+                <input type="text" id="customerName" name="customerName" placeholder="Enter your name">
+
+                <label for="customerPhone">Customer Phone</label>
+                <input type="text" id="customerPhone" name="customerPhone" placeholder="Enter phone number">
+
+                <button class="order-button" onclick="saveOrder()">Confirm Order</button>
+            </article>
+
+            <article class="right">
+                <img id="productImage" src="placeholder.jpg" alt="Product Image">
+                <h2 id="productName">Product Name</h2>
+                <p id="productPrice"></p>
+                <p id="productArriveTime"></p>
+            </article>
+        </article>
+    </article>
+
+    <!-- Big modal for the order list -->
+    <div id="orderListModal" class="modal">
+        <div class="big-modal-content">
+            <span class="close" onclick="closeOrderList()">&times;</span>
+            <h2>Order List</h2>
+            <table id="orderListTable">
+                <thead>
+                    <tr>
+                        <th>Product Name</th>
+                        <th>Customer</th>
+                        <th>Order Date</th>
+                        <th>Expected Arrival</th>
+                        <th>Arriving Status</th>
+                        <th>Edit Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Orders will be dynamically added here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const url = 'https://api.jsonbin.io/v3/b/66dc82bee41b4d34e42ba0ee';
+        let products = [];
+        let selectedProduct = null;
+        let selectedBrand = null;
+        let selectedSize = null;
+        let orders = JSON.parse(localStorage.getItem('orders')) || [];
+
+        // Fetch data from JSONBin API
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                products = data.record.products;
+                displayProducts(products);
+                displayCategoryButtons(products); // Display category buttons after fetching data
+            });
+
+        // Display products
+        function displayProducts(productArray) {
+            const container = document.getElementById('productContainer');
+            container.innerHTML = '';
+
+            productArray.map(product => {
+                const productCard = `
+                    <article class="product-card">
+                        <img src="${product.image}" alt="${product.name}">
+                        <article class="info">
+                            <h2>${product.name}</h2>
+                            <p>${product.description}</p>
+                            <p class="price">From $${getMinPrice(product.brands)}</p>
+                            <p>Arrive Time: ${product.arriveTime}</p>
+                            <button class="order-button" onclick="openModal('${product.name}')">Order</button>
+                        </article>
+                    </article>
+                `;
+                container.innerHTML += productCard;
+            });
+        }
+
+        // Display category buttons dynamically
+        function displayCategoryButtons(productArray) {
+            const categories = [...new Set(productArray.map(product => product.category))]; // Get unique categories
+            const filterButtons = document.getElementById('filterButtons');
+            filterButtons.innerHTML = '';
+
+            // Add "All" button
+            filterButtons.innerHTML += `<button onclick="filterProducts('all')">All</button>`;
+
+            // Add buttons for each category
+            categories.forEach(category => {
+                filterButtons.innerHTML += `<button onclick="filterProducts('${category}')">${capitalize(category)}</button>`;
+            });
+        }
+
+        // Capitalize category name
+        function capitalize(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        // Filter products based on category
+        function filterProducts(category) {
+            if (category === 'all') {
+                displayProducts(products);
+            } else {
+                const filteredProducts = products.filter(product => product.category === category);
+                displayProducts(filteredProducts);
+            }
+        }
+
+        // Get minimum price from all brand sizes for a product
+        function getMinPrice(brands) {
+            let minPrice = Infinity;
+            brands.forEach(brand => {
+                brand.sizes.forEach(size => {
+                    if (size.price < minPrice) {
+                        minPrice = size.price;
+                    }
+                });
+            });
+            return minPrice;
+        }
+
+        // Modal functionality for ordering
+        const modal = document.getElementById("orderModal");
+        const closeModal = document.querySelector(".close");
+
+        function openModal(productName) {
+            selectedProduct = products.find(product => product.name === productName);
+            document.getElementById("productName").innerText = selectedProduct.name;
+            document.getElementById("productImage").src = selectedProduct.image;
+            document.getElementById("productArriveTime").innerText = `Arrive Time: ${selectedProduct.arriveTime}`;
+            // Populate brands
+            const brandSelect = document.getElementById("brand");
+            brandSelect.innerHTML = '';
+            selectedProduct.brands.forEach((brand, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.innerText = brand.name;
+                brandSelect.appendChild(option);
+            });
+            updateSizes(); // Update sizes based on selected brand
+            modal.style.display = "block";
+        }
+
+        function updateSizes() {
+            const brandSelect = document.getElementById("brand");
+            selectedBrand = selectedProduct.brands[brandSelect.value];
+            const sizeSelect = document.getElementById("size");
+            sizeSelect.innerHTML = '';
+            selectedBrand.sizes.forEach((size, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.innerText = `${size.size} - $${size.price}`;
+                sizeSelect.appendChild(option);
+            });
+            updatePrice(); // Update price based on selected size
+        }
+
+        function updatePrice() {
+            const sizeSelect = document.getElementById("size");
+            selectedSize = selectedBrand.sizes[sizeSelect.value];
+            document.getElementById("productPrice").innerText = `Price: $${selectedSize.price}`;
+        }
+
+        closeModal.onclick = function() {
+            modal.style.display = "none";
+        }
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        // Save order to localStorage
+        function saveOrder() {
+            const customerName = document.getElementById("customerName").value;
+            const customerPhone = document.getElementById("customerPhone").value;
+            const orderDate = new Date().toISOString().split('T')[0]; // Get today's date
+
+            if (!customerName || !customerPhone || !selectedProduct || !selectedSize) {
+                alert("Please fill in all fields.");
+                return;
+            }
+
+            const order = {
+                productName: selectedProduct.name,
+                customerName,
+                customerPhone,
+                orderDate,
+                expectedArrivalDate: calculateExpectedArrivalDate(selectedProduct.arriveTime),
+                status: 'ordered',
+                size: selectedSize.size,
+                price: selectedSize.price
+            };
+
+            orders.push(order);
+            localStorage.setItem('orders', JSON.stringify(orders));
+            alert("Order saved!");
+            modal.style.display = "none";
+        }
+
+        function calculateExpectedArrivalDate(arriveTime) {
+            const daysToAdd = parseInt(arriveTime.split('-')[1]); // Get max days in arrival time
+            const currentDate = new Date();
+            currentDate.setDate(currentDate.getDate() + daysToAdd);
+            return currentDate.toISOString().split('T')[0]; // Return in YYYY-MM-DD format
+        }
+
+        // Order list modal functionality
+        const orderListModal = document.getElementById("orderListModal");
+
+        function openOrderList() {
+            updateOrderList();
+            orderListModal.style.display = "block";
+        }
+
+        function closeOrderList() {
+            orderListModal.style.display = "none";
+        }
+
+        function updateOrderList() {
+            const tbody = document.querySelector("#orderListTable tbody");
+            tbody.innerHTML = ''; // Clear current rows
+
+            orders.forEach(order => {
+                const row = document.createElement('tr');
+                const statusOptions = `
+                    <select onchange="updateOrderStatus(${orders.indexOf(order)}, this.value)">
+                        <option value="ordered" ${order.status === 'ordered' ? 'selected' : ''}>Ordered</option>
+                        <option value="arrived" ${order.status === 'arrived' ? 'selected' : ''}>Arrived but not picked up</option>
+                        <option value="picked_up" ${order.status === 'picked_up' ? 'selected' : ''}>Picked up</option>
+                    </select>
+                `;
+                row.innerHTML = `
+                    <td>${order.productName}</td>
+                    <td>${order.customerName}</td>
+                    <td>${order.orderDate}</td>
+                    <td>${order.expectedArrivalDate}</td>
+                    <td>${checkIfLate(order)}</td>
+                    <td>${statusOptions}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        function checkIfLate(order) {
+            const currentDate = new Date();
+            const expectedDate = new Date(order.expectedArrivalDate);
+            if (currentDate > expectedDate && order.status === 'ordered') {
+                return 'Late';
+            }
+            return 'On Time';
+        }
+
+        function updateOrderStatus(index, newStatus) {
+            orders[index].status = newStatus;
+            localStorage.setItem('orders', JSON.stringify(orders)); // Update localStorage
+            updateOrderList(); // Refresh order list
+        }
+        
+    </script>
+
+</body>
+</html>

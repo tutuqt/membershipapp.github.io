@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Membership Management</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="dark.js"></script>
+    <script src="https://kit.fontawesome.com/6de3310472.js" crossorigin="anonymous"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header>
+        <article>
+            <h2>Membership Management</h2>
+                <i class="fa-regular fa-user fa-lg" onclick="window.location.assign('login.html')"></i>
+            <button onclick="history.back()">Go Back</button>
+        </article>
+    </header>
+    <main class="container" id="main-content">
+        <article>
+            <h2>Add Member</h2>
+            <form id="member-form">
+                <label for="name">Name</label>
+                <input type="text" id="name" required>
+                <label for="phone">Phone Number</label>
+                <input type="text" id="phone" required>
+                <div id="membership-type-container">
+                    <label for="membership-type">Membership Type</label>
+                    <select id="membership-type" required>
+                        <option value="" disabled selected>Select a membership type</option>
+                    </select>
+                    <button type="button" id="add-type-button">Add Type</button>
+                </div>
+                <label for="days">Membership Days</label>
+                <input type="number" id="days" required>
+                <label for="picture">Picture</label>
+                <input type="file" id="picture" accept="image/*" >
+                <button type="submit">Add Member</button>
+            </form>
+            <h2>Membership Types</h2>
+            <ul id="membership-type-list">
+                <!-- Membership types with delete buttons will be listed here -->
+            </ul>
+        </article>
+        <article>
+            <h2>Check-In</h2>
+            <form id="check-in-form">
+                <label for="check-in-phone">Phone Number</label>
+                <input type="text" id="check-in-phone" required>
+                <button type="submit">Check In</button>
+            </form>
+            <div id="check-in-message"></div>
+            <h2>Filter by Membership Type</h2>
+    <select id="category-select">
+        <option value="all">All</option>
+        <!-- Membership type options will be populated here -->
+    </select>
+    <span id="current-category">Category: All</span>
+
+            <h2>Members List</h2>
+            <table id="members-table">
+                <thead>
+                    <tr>
+                        <th>Picture</th>
+                        <th>Name</th>
+                        <th>Phone Number</th>
+                        <th>Membership Type</th>
+                        <th>Remaining Days</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Members will be listed here -->
+                </tbody>
+            </table>
+        </article>
+    </main>
+
+    <script>
+   document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('member-form');
+    const checkInForm = document.getElementById('check-in-form');
+    const membersTable = document.getElementById('members-table').getElementsByTagName('tbody')[0];
+    const checkInMessage = document.getElementById('check-in-message');
+    const membershipTypeSelect = document.getElementById('membership-type');
+    const addTypeButton = document.getElementById('add-type-button');
+    const membershipTypeList = document.getElementById('membership-type-list');
+    const categorySelect = document.getElementById('category-select');
+    const currentCategory = document.getElementById('current-category');
+
+    const loadMembershipTypes = () => {
+        const customTypes = JSON.parse(localStorage.getItem('membershipTypes')) || [];
+        membershipTypeSelect.innerHTML = '';
+        categorySelect.innerHTML = '<option value="all">All</option>';
+        membershipTypeList.innerHTML = '';
+
+        customTypes.forEach((type, index) => {
+            const option = document.createElement('option');
+            option.value = type.name;
+            option.textContent = `${type.name} - $${type.price}`;
+            membershipTypeSelect.appendChild(option);
+
+            const categoryOption = document.createElement('option');
+            categoryOption.value = type.name;
+            categoryOption.textContent = type.name;
+            categorySelect.appendChild(categoryOption);
+
+            const li = document.createElement('li');
+            li.textContent = `${type.name} - $${type.price}`;
+            const deleteButton = document.createElement('button');
+            deleteButton.textContent = 'Delete';
+            deleteButton.onclick = () => deleteMembershipType(index);
+            li.appendChild(deleteButton);
+            membershipTypeList.appendChild(li);
+        });
+    };
+
+    // Function to save membership types to localStorage
+    const saveMembershipTypes = (types) => {
+        localStorage.setItem('membershipTypes', JSON.stringify(types));
+        loadMembershipTypes();
+    };
+
+    // Function to add a new membership type
+    const addMembershipType = (type) => {
+        const customTypes = JSON.parse(localStorage.getItem('membershipTypes')) || [];
+        customTypes.push(type);
+        saveMembershipTypes(customTypes);
+    };
+
+    // Function to delete a membership type
+    const deleteMembershipType = (index) => {
+        const customTypes = JSON.parse(localStorage.getItem('membershipTypes')) || [];
+        customTypes.splice(index, 1);
+        saveMembershipTypes(customTypes);
+    };
+
+    // Event listener for adding a new membership type
+    addTypeButton.addEventListener('click', () => {
+        const newTypeName = prompt('Enter new membership type:');
+        const newTypePrice = prompt('Enter the price for this membership type:');
+        if (newTypeName && newTypeName.trim() && newTypePrice && !isNaN(newTypePrice)) {
+            addMembershipType({ name: newTypeName.trim(), price: parseFloat(newTypePrice.trim()) });
+        } else {
+            alert('Please enter valid membership type and price.');
+        }
+    });
+
+    const loadMembers = (filterType = 'all') => {
+        const members = JSON.parse(localStorage.getItem('members')) || [];
+        const lastUpdated = localStorage.getItem('lastUpdated');
+        const daysPassed = getDaysSinceLastUpdate(lastUpdated);
+
+        membersTable.innerHTML = '';
+        const filteredMembers = members.filter(member => filterType === 'all' || member.membershipType === filterType);
+        
+        filteredMembers.forEach((member, index) => {
+            member.days = Math.max(member.days - daysPassed, 0); // Decrease days but prevent negative values
+            const row = membersTable.insertRow();
+            row.innerHTML = `
+                <td><img src="${member.picture}" alt="${member.name}" style="max-width: 50px;"></td>
+                <td>${member.name}</td>
+                <td>${member.phone}</td>
+                <td>${member.membershipType}</td>
+                <td>${member.days} days</td>
+                <td class="actions">
+                    <button class="update" onclick="updateMember(${index})">Update</button>
+                    <button onclick="deleteMember(${index})">Delete</button>
+                </td>
+            `;
+        });
+
+        saveMembers(members);
+        localStorage.setItem('lastUpdated', new Date().toISOString());
+    };
+
+    const saveMembers = (members) => {
+        localStorage.setItem('members', JSON.stringify(members));
+    };
+
+    const getDaysSinceLastUpdate = (lastUpdated) => {
+        if (!lastUpdated) return 0;
+        const lastDate = new Date(lastUpdated);
+        const currentDate = new Date();
+        const timeDiff = currentDate - lastDate;
+        return Math.floor(timeDiff / (1000 * 60 * 60 * 24)); // Convert milliseconds to days
+    };
+
+    const resizeImage = (file, maxWidth, maxHeight, callback) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const img = new Image();
+            img.onload = () => {
+                let canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+
+                if (width > height) {
+                    if (width > maxWidth) {
+                        height *= maxWidth / width;
+                        width = maxWidth;
+                    }
+                } else {
+                    if (height > maxHeight) {
+                        width *= maxHeight / height;
+                        height = maxHeight;
+                    }
+                }
+
+                canvas.width = width;
+                canvas.height = height;
+                canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+
+                callback(canvas.toDataURL(file.type));
+            };
+            img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+    };
+
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        const name = document.getElementById('name').value;
+        const phone = document.getElementById('phone').value;
+        const membershipType = membershipTypeSelect.value;
+        const days = document.getElementById('days').value;
+        const picture = document.getElementById('picture').files[0];
+
+        resizeImage(picture, 150, 150, (pictureSrc) => {
+            const members = JSON.parse(localStorage.getItem('members')) || [];
+            members.push({ name, phone, membershipType, days, picture: pictureSrc });
+            saveMembers(members);
+            form.reset();
+            loadMembers(categorySelect.value);
+        });
+    });
+
+    checkInForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const phone = document.getElementById('check-in-phone').value;
+        const members = JSON.parse(localStorage.getItem('members')) || [];
+        const member = members.find(m => m.phone === phone);
+
+        if (member) {
+            const remainingDays = parseInt(member.days);
+            if (remainingDays > 0) {
+                checkInMessage.textContent = `Welcome, ${member.name}! Your membership is active. (${remainingDays} days remaining)`;
+                checkInMessage.style.color = 'green';
+            } else {
+                checkInMessage.textContent = `Sorry, ${member.name}. Your membership has expired.`;
+                checkInMessage.style.color = 'red';
+            }
+        } else {
+            checkInMessage.textContent = 'Member not found. Please check the phone number.';
+            checkInMessage.style.color = 'red';
+        }
+    });
+
+    window.updateMember = (index) => {
+        const members = JSON.parse(localStorage.getItem('members'));
+        const member = members[index];
+
+        const newDays = prompt('Add days to membership:', '0');
+        if (newDays !== null) {
+            member.days = parseInt(member.days) + parseInt(newDays);
+            saveMembers(members);
+            loadMembers(categorySelect.value);
+        }
+    };
+
+    window.deleteMember = (index) => {
+        const members = JSON.parse(localStorage.getItem('members'));
+        if (confirm(`Are you sure you want to delete ${members[index].name}?`)) {
+            members.splice(index, 1);
+            saveMembers(members);
+            loadMembers(categorySelect.value);
+        }
+    };
+
+    categorySelect.addEventListener('change', () => {
+        const selectedCategory = categorySelect.value;
+        currentCategory.textContent = `Category: ${selectedCategory.charAt(0).toUpperCase() + selectedCategory.slice(1)}`;
+        loadMembers(selectedCategory);
+    });
+
+    loadMembershipTypes();
+    loadMembers();
+});
+
+    </script>
+</body>
+</html>

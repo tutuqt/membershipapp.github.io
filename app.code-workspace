@@ -1,0 +1,22 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"sqltools.connections": [
+			{
+				"previewLimit": 50,
+				"server": "localhost",
+				"port": 5433,
+				"driver": "PostgreSQL",
+				"name": "NewDB",
+				"database": "NewDB",
+				"username": "postgres",
+				"password": "Tugu9089",
+				"connectionTimeout": 30
+			}
+		]
+	}
+}
